@@ -1,9 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 200 200">
   <style>
     .heart {
       fill: #ff4757;
       animation: pulse 1.2s ease-in-out infinite;
       transform-origin: center;
+      transform-box: fill-box;
     }
     @keyframes pulse {
       0%, 100% { transform: scale(1); }
