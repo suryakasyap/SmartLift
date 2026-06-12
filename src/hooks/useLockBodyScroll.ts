@@ -1,15 +1,18 @@
 import { useLayoutEffect } from 'react';
 
-/** Prevents body scrolling while `locked` is true (e.g. behind a modal). */
 export function useLockBodyScroll(locked: boolean = true) {
-  useLayoutEffect(() => {
-    if (!locked) return;
+    useLayoutEffect(() => {
+        if (!locked) return;
 
-    const originalOverflow = window.getComputedStyle(document.body).overflow;
-    document.body.style.overflow = 'hidden';
+        // Save initial body overflow style
+        const originalStyle = window.getComputedStyle(document.body).overflow;
 
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [locked]);
+        // Prevent scrolling on mount
+        document.body.style.overflow = 'hidden';
+
+        // Re-enable scrolling when component unmounts
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, [locked]);
 }
