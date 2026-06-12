@@ -1,117 +1,94 @@
 import { create } from 'zustand';
-import type { Exercise } from '../db/db';
+import type { Exercise, PlanningType, TimeFormat, Workout } from '../db/db';
+import {
+  DEFAULT_ACCENT_COLOR,
+  DEFAULT_CYCLE_COUNT,
+  DEFAULT_REMINDER_TIME,
+  DEFAULT_REST_SECONDS,
+} from '../constants';
 
-interface WorkoutStoreState {
-    // Workout Logic
-    name: string;
-    setName: (name: string) => void;
-
-    isPlanned: boolean;
-    setIsPlanned: (val: boolean) => void;
-
-    planningType: 'week_days' | 'spacing';
-    setPlanningType: (val: 'week_days' | 'spacing') => void;
-
-    selectedDays: string[];
-    setSelectedDays: (days: string[]) => void;
-
-    spacingDays: number;
-    setSpacingDays: (val: number) => void;
-
-    reminderEnabled: boolean;
-    setReminderEnabled: (val: boolean) => void;
-    reminderTime: string;
-    setReminderTime: (time: string) => void;
-    timeFormat: '12h' | '24h';
-    setTimeFormat: (format: '12h' | '24h') => void;
-
-    // Customization
-    color: string;
-    setColor: (val: string) => void;
-    targetSets: string;
-    setTargetSets: (val: string) => void;
-    repType: 'reps' | 'time';
-    setRepType: (val: 'reps' | 'time') => void;
-    restTime: number;
-    setRestTime: (val: number) => void;
-
-    cycleEnabled: boolean;
-    setCycleEnabled: (val: boolean) => void;
-    cycleCount: number;
-    setCycleCount: (val: number) => void;
-
-    exercises: Exercise[];
-    addExercise: (exercise: Exercise) => void;
-    removeExercise: (id: number) => void;
-    updateExercise: (exercise: Exercise) => void;
-
-    editingId: number | null;
-    setEditingId: (id: number | null) => void;
-
-    reset: () => void;
+/** Form state for the workout being created or edited. */
+export interface WorkoutDraft {
+  name: string;
+  isPlanned: boolean;
+  planningType: Exclude<PlanningType, 'never'>;
+  selectedDays: string[];
+  spacingDays: number;
+  reminderEnabled: boolean;
+  reminderTime: string;
+  timeFormat: TimeFormat;
+  color: string;
+  restTime: number;
+  cycleEnabled: boolean;
+  cycleCount: number;
 }
 
-export const useWorkoutStore = create<WorkoutStoreState>((set) => ({
-    name: '',
-    setName: (name) => set({ name }),
+interface WorkoutDraftState extends WorkoutDraft {
+  exercises: Exercise[];
+  /** Id of the workout being edited, or null when creating a new one. */
+  editingId: number | null;
+  updateDraft: (patch: Partial<WorkoutDraft>) => void;
+  addExercise: (exercise: Exercise) => void;
+  updateExercise: (exercise: Exercise) => void;
+  removeExercise: (id: number) => void;
+  /** Hydrates the draft from an existing workout for editing. */
+  loadWorkout: (workout: Workout, exercises: Exercise[], fallbackColor: string) => void;
+  reset: () => void;
+}
 
-    isPlanned: false,
-    setIsPlanned: (isPlanned) => set({ isPlanned }),
+const initialDraft: WorkoutDraft = {
+  name: '',
+  isPlanned: false,
+  planningType: 'week_days',
+  selectedDays: [],
+  spacingDays: 0,
+  reminderEnabled: false,
+  reminderTime: DEFAULT_REMINDER_TIME,
+  timeFormat: '24h',
+  color: DEFAULT_ACCENT_COLOR,
+  restTime: DEFAULT_REST_SECONDS,
+  cycleEnabled: false,
+  cycleCount: DEFAULT_CYCLE_COUNT,
+};
 
-    planningType: 'week_days',
-    setPlanningType: (planningType) => set({ planningType }),
+export const useWorkoutStore = create<WorkoutDraftState>((set) => ({
+  ...initialDraft,
+  exercises: [],
+  editingId: null,
 
-    selectedDays: [],
-    setSelectedDays: (selectedDays) => set({ selectedDays }),
+  updateDraft: (patch) => set(patch),
 
-    spacingDays: 0,
-    setSpacingDays: (spacingDays) => set({ spacingDays }),
+  addExercise: (exercise) =>
+    set((state) => ({ exercises: [...state.exercises, exercise] })),
 
-    reminderEnabled: false,
-    setReminderEnabled: (reminderEnabled) => set({ reminderEnabled }),
-    reminderTime: '18:30',
-    setReminderTime: (reminderTime) => set({ reminderTime }),
-    timeFormat: '24h',
-    setTimeFormat: (timeFormat) => set({ timeFormat }),
+  updateExercise: (exercise) =>
+    set((state) => ({
+      exercises: state.exercises.map((existing) =>
+        existing.id === exercise.id ? exercise : existing,
+      ),
+    })),
 
-    color: '#F4A261', // Default orange/peach
-    setColor: (color) => set({ color }),
-    targetSets: '30-30-30',
-    setTargetSets: (targetSets) => set({ targetSets }),
-    repType: 'reps',
-    setRepType: (repType) => set({ repType }),
-    restTime: 180,
-    setRestTime: (restTime) => set({ restTime }),
+  removeExercise: (id) =>
+    set((state) => ({
+      exercises: state.exercises.filter((exercise) => exercise.id !== id),
+    })),
 
-    cycleEnabled: false,
-    setCycleEnabled: (cycleEnabled) => set({ cycleEnabled }),
-    cycleCount: 3,
-    setCycleCount: (cycleCount) => set({ cycleCount }),
+  loadWorkout: (workout, exercises, fallbackColor) =>
+    set({
+      editingId: workout.id,
+      name: workout.name,
+      isPlanned: workout.planning_type !== 'never',
+      planningType: workout.planning_type === 'spacing' ? 'spacing' : 'week_days',
+      selectedDays: workout.week_days ?? [],
+      spacingDays: workout.spacing_days ?? 0,
+      reminderEnabled: Boolean(workout.reminder_time),
+      reminderTime: workout.reminder_time ?? DEFAULT_REMINDER_TIME,
+      cycleEnabled: workout.cycle_enabled,
+      cycleCount: workout.cycle_count ?? DEFAULT_CYCLE_COUNT,
+      color: workout.color ?? fallbackColor,
+      restTime: workout.rest_time ?? DEFAULT_REST_SECONDS,
+      exercises,
+    }),
 
-    exercises: [],
-    addExercise: (exercise) => set((state) => ({ exercises: [...state.exercises, exercise] })),
-    removeExercise: (id: number) => set((state) => ({ exercises: state.exercises.filter(e => e.id !== id) })),
-    updateExercise: (exercise: Exercise) => set((state) => ({ exercises: state.exercises.map(e => e.id === exercise.id ? exercise : e) })),
-
-    editingId: null,
-    setEditingId: (id) => set({ editingId: id }),
-
-    reset: () => set({
-        editingId: null,
-        name: '',
-        isPlanned: false,
-        planningType: 'week_days',
-        selectedDays: [],
-        spacingDays: 0,
-        reminderEnabled: false,
-        reminderTime: '18:30',
-        timeFormat: '24h',
-        color: '#F4A261',
-        targetSets: '30-30-30',
-        repType: 'reps',
-        restTime: 180,
-        cycleEnabled: false,
-        cycleCount: 3,
-        exercises: []
-    })
+  reset: () => set({ ...initialDraft, exercises: [], editingId: null }),
 }));

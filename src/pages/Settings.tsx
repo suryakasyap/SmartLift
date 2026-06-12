@@ -1,265 +1,243 @@
 import { useState } from 'react';
+import {
+  User,
+  Ruler,
+  Palette,
+  Globe,
+  Calendar,
+  Dumbbell,
+  Mars,
+  Venus,
+  Terminal,
+} from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { ColorPicker } from '../components/ui/ColorPicker';
+import { EquipmentSheet } from '../components/workout/EquipmentSheet';
+import { db } from '../db/db';
 import { useThemeStore } from '../store/themeStore';
-import { useUserStore } from '../store/userStore';
-import { ColorPicker } from '../components/FormComponents';
-import { User, Ruler, Palette, Globe, Calendar, Dumbbell, Mars, Venus } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { Button } from '../components/Button';
-import { EquipmentSheet } from '../components/EquipmentSheet';
+import { useUserStore, type Gender } from '../store/userStore';
 import { useEquipmentStore } from '../store/equipmentStore';
 import { useDevStore } from '../store/devStore';
-import { Terminal } from 'lucide-react'; // Dev icon
+import { cn } from '../lib/utils';
 
-// Reusable List Item Component
-const ListItem = ({
-    icon: Icon,
-    label,
-    value,
-    onClick,
-    isLast = false,
-    className,
-    errorMessage
-}: {
-    icon?: React.ComponentType<{ className?: string }> | (() => React.ReactNode),
-    label: string,
-    value?: React.ReactNode,
-    onClick?: () => void,
-    isLast?: boolean,
-    className?: string,
-    errorMessage?: string
-}) => (
-    <div
-        onClick={onClick}
-        className={cn(
-            "flex flex-col py-4 px-5 -mx-5 cursor-pointer active:bg-zinc-800/50 transition-colors rounded-xl",
-            !isLast && "border-b border-zinc-800 border-dashed",
-            className
+const GENDER_OPTIONS: Gender[] = ['Male', 'Female', 'Other'];
+
+const OtherGenderIcon = ({ className }: { className?: string }) => (
+  <span className={cn('text-xl leading-none', className)}>⚥</span>
+);
+
+const GENDER_ICONS: Record<Gender, React.ComponentType<{ className?: string }>> = {
+  Male: Mars,
+  Female: Venus,
+  Other: OtherGenderIcon,
+};
+
+interface ListItemProps {
+  icon?: React.ComponentType<{ className?: string }>;
+  label: string;
+  value?: React.ReactNode;
+  onClick?: () => void;
+  isLast?: boolean;
+  errorMessage?: string;
+}
+
+const ListItem = ({ icon: Icon, label, value, onClick, isLast = false, errorMessage }: ListItemProps) => (
+  <div
+    onClick={onClick}
+    className={cn(
+      '-mx-5 flex cursor-pointer flex-col rounded-xl px-5 py-4 transition-colors active:bg-zinc-800/50',
+      !isLast && 'border-b border-dashed border-zinc-800',
+    )}
+  >
+    <div className="flex w-full items-center justify-between">
+      <div className="flex items-center gap-3 text-zinc-300">
+        {Icon && <Icon className="h-5 w-5 text-zinc-500" />}
+        <span className="text-sm font-medium">{label}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {typeof value === 'string' ? (
+          <span className="text-sm font-bold text-white">{value}</span>
+        ) : (
+          value
         )}
-    >
-        <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-3 text-zinc-300">
-                {Icon && <Icon className="w-5 h-5 text-zinc-500" />}
-                <span className="font-medium text-sm">{label}</span>
-            </div>
-            <div className="flex items-center gap-2">
-                {typeof value === 'string' ? (
-                    <span className="text-white font-bold text-sm">{value}</span>
-                ) : value}
-            </div>
-        </div>
-        {errorMessage && (
-            <p className="text-[10px] text-red-500 font-medium mt-2 pl-8 opacity-0 animate-in fade-in slide-in-from-top-1 fill-mode-forwards opacity-100">
-                {errorMessage}
-            </p>
-        )}
+      </div>
     </div>
+    {errorMessage && (
+      <p className="mt-2 pl-8 text-[10px] font-medium text-red-500">{errorMessage}</p>
+    )}
+  </div>
+);
+
+const SectionHeading = ({ children }: { children: React.ReactNode }) => (
+  <h2 className="mb-2 ml-1 text-xs font-bold uppercase tracking-wider text-zinc-500">{children}</h2>
 );
 
 export default function Settings() {
-    const { appColor, setAppColor } = useThemeStore();
-    const {
-        name, setName,
-        gender, setGender,
-        units, setUnits,
-        weekStart, setWeekStart,
-        language
-    } = useUserStore();
+  const { appColor, setAppColor } = useThemeStore();
+  const { name, setName, gender, setGender, units, setUnits, weekStart, setWeekStart, language } =
+    useUserStore();
+  const { selectedEquipment } = useEquipmentStore();
+  const { systemDate, setSystemDate } = useDevStore();
 
-    const [languageError, setLanguageError] = useState<string | null>(null);
-    const [isEditingName, setIsEditingName] = useState(false);
-    const [tempName, setTempName] = useState(name);
-    const [isEquipmentOpen, setIsEquipmentOpen] = useState(false);
+  const [languageError, setLanguageError] = useState<string | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [pendingName, setPendingName] = useState(name);
+  const [isEquipmentOpen, setIsEquipmentOpen] = useState(false);
 
-    const { selectedEquipment } = useEquipmentStore();
+  const handleLanguageClick = () => {
+    setLanguageError('Only English is supported right now');
+    setTimeout(() => setLanguageError(null), 3000);
+  };
 
-    const getGenderIcon = () => {
-        switch (gender) {
-            case 'Male': return Mars;
-            case 'Female': return Venus;
-            default: return () => <span className="text-zinc-500 text-xl leading-none">⚥</span>;
-        }
-    };
+  const startEditingName = () => {
+    setPendingName(name);
+    setIsEditingName(true);
+  };
 
-    const handleLanguageClick = () => {
-        setLanguageError("Only English is supported right now");
-        setTimeout(() => setLanguageError(null), 3000);
-    };
+  const saveName = () => {
+    if (pendingName.trim()) setName(pendingName.trim());
+    setIsEditingName(false);
+  };
 
-    // Name edit handlers
-    const handleNameClick = () => {
-        setTempName(name);
-        setIsEditingName(true);
-    };
+  const handleNameKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') saveName();
+    if (event.key === 'Escape') setIsEditingName(false);
+  };
 
-    const handleNameSave = () => {
-        if (tempName.trim()) setName(tempName.trim());
-        setIsEditingName(false);
-    };
+  const cycleGender = () => {
+    const nextIndex = (GENDER_OPTIONS.indexOf(gender) + 1) % GENDER_OPTIONS.length;
+    setGender(GENDER_OPTIONS[nextIndex]);
+  };
 
-    const handleNameKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') handleNameSave();
-        if (e.key === 'Escape') setIsEditingName(false);
-    };
+  const equipmentLabel =
+    selectedEquipment.length === 0
+      ? 'No equipment'
+      : `${selectedEquipment.length} equipment${selectedEquipment.length !== 1 ? 's' : ''}`;
 
-    const toggleGender = () => {
-        const options: ('Male' | 'Female' | 'Other')[] = ['Male', 'Female', 'Other'];
-        const nextIndex = (options.indexOf(gender) + 1) % options.length;
-        setGender(options[nextIndex]);
-    };
+  const handleClearData = async () => {
+    if (confirm('Are you sure? This will delete EVERYTHING.')) {
+      await db.delete();
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
 
-    const toggleUnits = () => setUnits(units === 'Metrics' ? 'Imperial' : 'Metrics');
-    const toggleWeekStart = () => setWeekStart(weekStart === 'Monday' ? 'Sunday' : 'Monday');
+  return (
+    <>
+      <div className="min-h-screen bg-background p-6 pb-32 pt-12 text-white">
+        <h1 className="mb-8 text-3xl font-bold">Settings</h1>
 
-    return (
-        <>
-            <div className="p-6 pt-12 min-h-screen bg-black text-white pb-32">
-
-                {/* Header (Hidden in design? Usually yes, or minimal) */}
-                {/* The design just starts with "About you" */}
-                <h1 className="text-3xl font-bold mb-8">Settings</h1>
-
-                {/* About You Section */}
-                <div className="mb-8">
-                    <h2 className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2 ml-1">About you</h2>
-                    <div className="bg-zinc-900 rounded-2xl px-5">
-                        {/* Name Row - Inline Edit */}
-                        <div className="flex items-center justify-between py-4 border-b border-zinc-800 border-dashed">
-                            <div className="flex items-center gap-3 text-zinc-300">
-                                <User className="w-5 h-5 text-zinc-500" />
-                                <span className="font-medium text-sm">Name</span>
-                            </div>
-                            {isEditingName ? (
-                                <input
-                                    type="text"
-                                    value={tempName}
-                                    onChange={(e) => setTempName(e.target.value)}
-                                    onBlur={handleNameSave}
-                                    onKeyDown={handleNameKeyDown}
-                                    autoFocus
-                                    className="bg-transparent border-none outline-none text-sm text-white text-right w-32 font-bold caret-white"
-                                />
-                            ) : (
-                                <span
-                                    onClick={handleNameClick}
-                                    className="text-white font-bold text-sm cursor-pointer hover:text-zinc-300"
-                                >
-                                    {name}
-                                </span>
-                            )}
-                        </div>
-                        <ListItem
-                            icon={getGenderIcon()}
-                            label="Gender"
-                            value={gender}
-                            onClick={toggleGender}
-                        />
-                        <ListItem
-                            icon={Dumbbell}
-                            label="Your equipment"
-                            value={selectedEquipment.length === 0 ? "No equipment" : `${selectedEquipment.length} equipment${selectedEquipment.length !== 1 ? 's' : ''}`}
-                            onClick={() => setIsEquipmentOpen(true)}
-                            isLast
-                        />
-                    </div>
-                </div>
-
-                {/* Appearance Section */}
-                <div>
-                    <h2 className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2 ml-1">Appearance</h2>
-                    <div className="bg-zinc-900 rounded-2xl px-5">
-                        <ListItem
-                            icon={Ruler}
-                            label="Units"
-                            value={units === 'Metrics' ? 'Metric (kg)' : 'Imperial (lbs)'}
-                            onClick={toggleUnits}
-                        />
-                        {/* Theme (Light/Dark? Image has "Theme" but grayed out or hard to read. Assuming it's there.) */}
-                        {/* <ListItem label="Theme" value="Dark" /> */}
-
-                        {/* Main Color - Special Case */}
-                        <div className="flex items-center justify-between py-4 border-b border-zinc-800 border-dashed">
-                            <div className="flex items-center gap-3 text-zinc-300">
-                                <Palette className="w-5 h-5 text-zinc-500" />
-                                <span className="font-medium text-sm">Main color</span>
-                            </div>
-                            <div>
-                                {/* Reusing existing inline ColorPicker for simplicity, but making it look compact */}
-                                <ColorPicker value={appColor} onChange={setAppColor} />
-                            </div>
-                        </div>
-
-                        <ListItem
-                            icon={Calendar}
-                            label="Week starts"
-                            value={weekStart}
-                            onClick={toggleWeekStart}
-                        />
-                        <ListItem
-                            icon={Globe}
-                            label="Language"
-                            value={language}
-                            isLast
-                            onClick={handleLanguageClick}
-                            errorMessage={languageError || undefined}
-                        />
-                    </div>
-                </div>
-
-                {/* Danger Zone - Kept at bottom */}
-                <div className="mt-12">
-                    <div className="bg-red-900/10 p-4 rounded-xl border border-red-900/50 space-y-4">
-                        <div>
-                            <h3 className="font-bold text-red-400">Clear all data</h3>
-                            <p className="text-sm text-zinc-400">Permanently delete everything.</p>
-                        </div>
-                        <Button
-                            variant="secondary"
-                            className="w-full bg-red-900/20 text-red-400 border border-red-900/50 hover:bg-red-900/40"
-                            onClick={async () => {
-                                if (confirm("Are you sure? This will delete EVERYTHING.")) {
-                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                    await (window as any).indexedDB.deleteDatabase('WorkoutTrackerDB');
-                                    localStorage.clear();
-                                    window.location.reload();
-                                }
-                            }}
-                        >
-                            Clear Data
-                        </Button>
-                    </div>
-                </div>
-
-
-                {/* Developer Settings */}
-                <div className="mt-8">
-                    <h2 className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2 ml-1">Developer</h2>
-                    <div className="bg-zinc-900 rounded-2xl px-5 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-zinc-300">
-                                <Terminal className="w-5 h-5 text-zinc-500" />
-                                <span className="font-medium text-sm">System Date Override</span>
-                            </div>
-                            <input
-                                type="date"
-                                className="bg-zinc-800 text-white p-2 rounded-lg text-xs font-bold outline-none"
-                                onChange={(e) => {
-                                    if (e.target.valueAsDate) {
-                                        useDevStore.getState().setSystemDate(e.target.valueAsDate);
-                                    }
-                                }}
-                            />
-                        </div>
-                        <p className="text-[10px] text-zinc-500 mt-2">
-                            Current simulated: {useDevStore.getState().getSystemDate().toDateString()}
-                        </p>
-                    </div>
-                </div>
+        <section className="mb-8">
+          <SectionHeading>About you</SectionHeading>
+          <div className="rounded-2xl bg-zinc-900 px-5">
+            <div className="flex items-center justify-between border-b border-dashed border-zinc-800 py-4">
+              <div className="flex items-center gap-3 text-zinc-300">
+                <User className="h-5 w-5 text-zinc-500" />
+                <span className="text-sm font-medium">Name</span>
+              </div>
+              {isEditingName ? (
+                <input
+                  type="text"
+                  value={pendingName}
+                  onChange={(event) => setPendingName(event.target.value)}
+                  onBlur={saveName}
+                  onKeyDown={handleNameKeyDown}
+                  autoFocus
+                  className="w-32 border-none bg-transparent text-right text-sm font-bold text-white caret-white outline-none"
+                />
+              ) : (
+                <span
+                  onClick={startEditingName}
+                  className="cursor-pointer text-sm font-bold text-white hover:text-zinc-300"
+                >
+                  {name}
+                </span>
+              )}
             </div>
-
-            <EquipmentSheet
-                isOpen={isEquipmentOpen}
-                onClose={() => setIsEquipmentOpen(false)}
+            <ListItem icon={GENDER_ICONS[gender]} label="Gender" value={gender} onClick={cycleGender} />
+            <ListItem
+              icon={Dumbbell}
+              label="Your equipment"
+              value={equipmentLabel}
+              onClick={() => setIsEquipmentOpen(true)}
+              isLast
             />
-        </>
-    );
+          </div>
+        </section>
+
+        <section>
+          <SectionHeading>Appearance</SectionHeading>
+          <div className="rounded-2xl bg-zinc-900 px-5">
+            <ListItem
+              icon={Ruler}
+              label="Units"
+              value={units === 'Metrics' ? 'Metric (kg)' : 'Imperial (lbs)'}
+              onClick={() => setUnits(units === 'Metrics' ? 'Imperial' : 'Metrics')}
+            />
+            <div className="flex items-center justify-between border-b border-dashed border-zinc-800 py-4">
+              <div className="flex items-center gap-3 text-zinc-300">
+                <Palette className="h-5 w-5 text-zinc-500" />
+                <span className="text-sm font-medium">Main color</span>
+              </div>
+              <ColorPicker value={appColor} onChange={setAppColor} />
+            </div>
+            <ListItem
+              icon={Calendar}
+              label="Week starts"
+              value={weekStart}
+              onClick={() => setWeekStart(weekStart === 'Monday' ? 'Sunday' : 'Monday')}
+            />
+            <ListItem
+              icon={Globe}
+              label="Language"
+              value={language}
+              isLast
+              onClick={handleLanguageClick}
+              errorMessage={languageError ?? undefined}
+            />
+          </div>
+        </section>
+
+        <section className="mt-12">
+          <div className="space-y-4 rounded-xl border border-red-900/50 bg-red-900/10 p-4">
+            <div>
+              <h3 className="font-bold text-red-400">Clear all data</h3>
+              <p className="text-sm text-zinc-400">Permanently delete everything.</p>
+            </div>
+            <Button
+              variant="secondary"
+              className="w-full border border-red-900/50 bg-red-900/20 text-red-400 hover:bg-red-900/40"
+              onClick={handleClearData}
+            >
+              Clear Data
+            </Button>
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <SectionHeading>Developer</SectionHeading>
+          <div className="rounded-2xl bg-zinc-900 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-zinc-300">
+                <Terminal className="h-5 w-5 text-zinc-500" />
+                <span className="text-sm font-medium">System Date Override</span>
+              </div>
+              <input
+                type="date"
+                className="rounded-lg bg-zinc-800 p-2 text-xs font-bold text-white outline-none"
+                onChange={(event) => {
+                  if (event.target.valueAsDate) setSystemDate(event.target.valueAsDate);
+                }}
+              />
+            </div>
+            <p className="mt-2 text-[10px] text-zinc-500">
+              Current simulated: {new Date(systemDate).toDateString()}
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <EquipmentSheet isOpen={isEquipmentOpen} onClose={() => setIsEquipmentOpen(false)} />
+    </>
+  );
 }
