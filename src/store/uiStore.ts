@@ -1,25 +1,23 @@
 import { create } from 'zustand';
-import type { Exercise } from '../db/db';
 
-interface UiState {
-  isWorkoutSheetOpen: boolean;
-  isExerciseSheetOpen: boolean;
-  /** Exercise pre-filling the exercise sheet, or null when creating a new one. */
-  exerciseBeingEdited: Exercise | null;
-  openWorkoutSheet: () => void;
-  closeWorkoutSheet: () => void;
-  openExerciseSheet: (exercise?: Exercise) => void;
-  closeExerciseSheet: () => void;
+interface UIState {
+    isCreateWorkoutOpen: boolean;
+    isCreateExerciseOpen: boolean;
+    setIsCreateWorkoutOpen: (isOpen: boolean) => void;
+    setIsCreateExerciseOpen: (isOpen: boolean) => void;
+    openCreateWorkout: () => void;
+    closeCreateWorkout: () => void;
+    openCreateExercise: () => void;
+    closeCreateExercise: () => void;
 }
 
-export const useUiStore = create<UiState>((set) => ({
-  isWorkoutSheetOpen: false,
-  isExerciseSheetOpen: false,
-  exerciseBeingEdited: null,
-  openWorkoutSheet: () => set({ isWorkoutSheetOpen: true }),
-  closeWorkoutSheet: () => set({ isWorkoutSheetOpen: false }),
-  openExerciseSheet: (exercise) =>
-    set({ isExerciseSheetOpen: true, exerciseBeingEdited: exercise ?? null }),
-  closeExerciseSheet: () =>
-    set({ isExerciseSheetOpen: false, exerciseBeingEdited: null }),
+export const useUIStore = create<UIState>((set) => ({
+    isCreateWorkoutOpen: false,
+    isCreateExerciseOpen: false,
+    setIsCreateWorkoutOpen: (isOpen) => set({ isCreateWorkoutOpen: isOpen }),
+    setIsCreateExerciseOpen: (isOpen) => set({ isCreateExerciseOpen: isOpen }),
+    openCreateWorkout: () => set({ isCreateWorkoutOpen: true }),
+    closeCreateWorkout: () => set({ isCreateWorkoutOpen: false }),
+    openCreateExercise: () => set({ isCreateExerciseOpen: true }),
+    closeCreateExercise: () => set({ isCreateExerciseOpen: false }),
 }));
