@@ -1,7 +1,7 @@
 {
-  "name": "antigravity",
+  "name": "smartlift",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,7 +20,6 @@
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-mobile-picker": "^1.2.0",
     "react-router-dom": "^7.12.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.10"

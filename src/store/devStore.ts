@@ -1,28 +1,24 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+/**
+ * Developer tooling: lets the simulated "today" be overridden from Settings
+ * so scheduling and streak logic can be tested without waiting for real days.
+ */
 interface DevState {
-    systemDate: string; // ISO String
-    getSystemDate: () => Date;
-    setSystemDate: (date: Date) => void;
-    resetSystemDate: () => void;
-    isDevMode: boolean;
-    toggleDevMode: () => void;
+  /** ISO string of the simulated current date. */
+  systemDate: string;
+  getSystemDate: () => Date;
+  setSystemDate: (date: Date) => void;
 }
 
 export const useDevStore = create<DevState>()(
-    persist(
-        (set, get) => ({
-            systemDate: new Date().toISOString(),
-            getSystemDate: () => new Date(get().systemDate),
-            setSystemDate: (date) => set({ systemDate: date.toISOString() }),
-            resetSystemDate: () => set({ systemDate: new Date().toISOString() }),
-            isDevMode: false,
-            toggleDevMode: () => set((state) => ({ isDevMode: !state.isDevMode })),
-        }),
-        {
-            name: 'dev-storage',
-            // Default storage is localStorage, which works fine for strings.
-        }
-    )
+  persist(
+    (set, get) => ({
+      systemDate: new Date().toISOString(),
+      getSystemDate: () => new Date(get().systemDate),
+      setSystemDate: (date) => set({ systemDate: date.toISOString() }),
+    }),
+    { name: 'dev-storage' },
+  ),
 );
